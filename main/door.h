@@ -10,9 +10,9 @@ extern "C" {
 esp_err_t door_init(void);
 esp_err_t door_open(uint32_t duration_ms);
 
+bool door_1wire_reset(void);
 void door_1wire_write_bit(bool bit);
 bool door_1wire_read_bit(void);
-bool door_1wire_reset(void);
 
 #ifdef __cplusplus
 }

@@ -7,17 +7,15 @@
 
 static const char *TAG = "DOOR";
 
-#define DOOR_1WRX_GPIO     12
-#define DOOR_1WTX_GPIO     15
-#define DOOR_OPEN_GPIO     27      // RS-ON → 1W-CTRL → OpenD
+#define DOOR_OPEN_GPIO   27      // RS-ON → 1W-CTRL → OpenD
+#define DOOR_1WRX_GPIO   12
+#define DOOR_1WTX_GPIO   15
 
 esp_err_t door_init(void)
 {
     gpio_config_t open_conf = {
         .pin_bit_mask = (1ULL << DOOR_OPEN_GPIO),
         .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
     };
     ESP_ERROR_CHECK(gpio_config(&open_conf));
     gpio_set_level(DOOR_OPEN_GPIO, 0);
@@ -26,15 +24,12 @@ esp_err_t door_init(void)
         .pin_bit_mask = (1ULL << DOOR_1WRX_GPIO),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
     };
     ESP_ERROR_CHECK(gpio_config(&rx_conf));
 
     gpio_config_t tx_conf = {
         .pin_bit_mask = (1ULL << DOOR_1WTX_GPIO),
         .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
     };
     ESP_ERROR_CHECK(gpio_config(&tx_conf));
     gpio_set_level(DOOR_1WTX_GPIO, 1);
@@ -49,8 +44,18 @@ esp_err_t door_open(uint32_t duration_ms)
     gpio_set_level(DOOR_OPEN_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(duration_ms));
     gpio_set_level(DOOR_OPEN_GPIO, 0);
-    ESP_LOGI(TAG, "Door pulse finished");
     return ESP_OK;
+}
+
+bool door_1wire_reset(void)
+{
+    gpio_set_level(DOOR_1WTX_GPIO, 0);
+    ets_delay_us(480);
+    gpio_set_level(DOOR_1WTX_GPIO, 1);
+    ets_delay_us(70);
+    bool presence = !gpio_get_level(DOOR_1WRX_GPIO);
+    ets_delay_us(410);
+    return presence;
 }
 
 void door_1wire_write_bit(bool bit)
@@ -70,15 +75,4 @@ bool door_1wire_read_bit(void)
     bool bit = gpio_get_level(DOOR_1WRX_GPIO);
     ets_delay_us(55);
     return bit;
-}
-
-bool door_1wire_reset(void)
-{
-    gpio_set_level(DOOR_1WTX_GPIO, 0);
-    ets_delay_us(480);
-    gpio_set_level(DOOR_1WTX_GPIO, 1);
-    ets_delay_us(70);
-    bool presence = !gpio_get_level(DOOR_1WRX_GPIO);
-    ets_delay_us(410);
-    return presence;
 }
