@@ -9,8 +9,8 @@ idf_component_register(
         driver
         esp_driver_gpio
         esp_driver_spi
-        esp_driver_i2c
         freertos
         log
         tca95x5
+        i2cdev
 )

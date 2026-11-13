@@ -12,10 +12,10 @@ extern "C" {
  * ADG1608 8:1 Analog Multiplexer controlled via TCA9535
  *
  * Pin mapping on TCA9535:
- *   A0 = P0.6
- *   A1 = P0.7
- *   A2 = P1.0
- *   EN = P1.1
+ *   A0 = P0.6 (pin 6)
+ *   A1 = P0.7 (pin 7)
+ *   A2 = P1.0 (pin 8)
+ *   EN = P1.1 (pin 9)
  */
 
 #define ADG1608_A0_PIN   6
@@ -24,7 +24,7 @@ extern "C" {
 #define ADG1608_EN_PIN   9
 
 typedef struct {
-    i2c_dev_t *tca;          // pointer to tca95x5 device
+    i2c_dev_t *tca;
 } adg1608_t;
 
 esp_err_t adg1608_init(adg1608_t *mux, i2c_dev_t *tca);

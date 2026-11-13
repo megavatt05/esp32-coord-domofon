@@ -1,10 +1,11 @@
 #include <stdio.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/i2c_master.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 
+#include "i2cdev.h"
 #include "tca95x5.h"
 #include "adg1608.h"
 #include "mc33879.h"
@@ -37,28 +38,30 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Coordinate Domofon start (ESP-IDF + Component Registry)");
 
-    // --- I2C bus ---
+    // --- I2C bus (esp-idf-lib/i2cdev) ---
     ESP_ERROR_CHECK(i2cdev_init());
 
-    // --- TCA9535 (from Component Registry) ---
+    // --- TCA9535 ---
     memset(&tca, 0, sizeof(i2c_dev_t));
-    ESP_ERROR_CHECK(tca95x5_init_desc(&tca, TCA95X5_I2C_ADDRESS_000, I2C_NUM_0, I2C_SDA_GPIO, I2C_SCL_GPIO));
-    ESP_ERROR_CHECK(tca95x5_port_set_mode(&tca, 0, 0x00)); // Port 0 all outputs
-    ESP_ERROR_CHECK(tca95x5_port_set_mode(&tca, 1, 0x00)); // Port 1 all outputs
+    ESP_ERROR_CHECK(tca95x5_init_desc(&tca, TCA95X5_I2C_ADDR_BASE, I2C_NUM_0,
+                                      I2C_SDA_GPIO, I2C_SCL_GPIO));
+
+    // All 16 pins as outputs (0 = output, 1 = input)
+    ESP_ERROR_CHECK(tca95x5_port_set_mode(&tca, 0x0000));
 
     // --- ADG1608 ---
     ESP_ERROR_CHECK(adg1608_init(&mux, &tca));
 
     // --- MC33879 ---
     mc33879_config_t mc_cfg = {
-        .spi_host = SPI2_HOST,
-        .pin_cs   = MC_CS_GPIO,
-        .pin_sclk = MC_SCLK_GPIO,
-        .pin_mosi = MC_MOSI_GPIO,
-        .pin_miso = MC_MISO_GPIO,
-        .pin_en   = MC_EN_GPIO,
-        .pin_in5  = MC_IN5_GPIO,
-        .pin_in6  = MC_IN6_GPIO,
+        .spi_host     = SPI2_HOST,
+        .pin_cs       = MC_CS_GPIO,
+        .pin_sclk     = MC_SCLK_GPIO,
+        .pin_mosi     = MC_MOSI_GPIO,
+        .pin_miso     = MC_MISO_GPIO,
+        .pin_en       = MC_EN_GPIO,
+        .pin_in5      = MC_IN5_GPIO,
+        .pin_in6      = MC_IN6_GPIO,
         .spi_clock_hz = 1000000,
     };
     ESP_ERROR_CHECK(mc33879_init(&hs_switch, &mc_cfg));
