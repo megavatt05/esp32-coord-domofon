@@ -14,21 +14,23 @@
 static const char *TAG = "DOMOFON";
 
 /*
- * Pin map taken from the board schematic (net names), ESP32-PICO-V3.
+ * Pin map from the board schematic (net names), ESP32-PICO-V3.
  *
- * One SPI bus, several chip-selects:
- *   MOSI  GPIO7   net IO7   -> MC33879 DI
- *   MISO  GPIO9   net IO9   -> MC33879 DO
- *   SCLK  GPIO5   net IO5   -> MC33879 SCLK
- *   CS-D  GPIO8   net IO8   -> MC33879 CS
+ * One external SPI bus on SPI2_HOST (HSPI). SPI0/SPI1 are left on the
+ * in-package flash and are never initialized here.
+ *
+ *   MOSI  GPIO7   net IO7   -> MC33879 DI     free on PICO-V3
+ *   MISO  GPIO9   net IO9   -> MC33879 DO     free on PICO-V3, PSRAM on V3-02
+ *   SCLK  GPIO5   net IO5   -> MC33879 SCLK   free, strapping pin
+ *   CS-D  GPIO8   net IO8   -> MC33879 CS     free on PICO-V3
  *   EN-DE GPIO20  net IO20  -> MC33879 EN
- *   CS-E  GPIO10  net IO10  (other SPI device, not attached yet)
- *   CS-P  GPIO19  net IO19  (other SPI device, not attached yet)
- *   EN-P  GPIO22  net IO22  (other SPI device, not attached yet)
+ *   CS-E  GPIO10  net IO10                    free on PICO-V3, PSRAM on V3-02
+ *   CS-P  GPIO19  net IO19
+ *   EN-P  GPIO22  net IO22
  *
- * GPIO6-11 are bonded to the in-package flash on ESP32-PICO-V3.
- * The schematic still routes the external SPI onto GPIO5/7/8/9/10.
- * Do not also claim SPI1_HOST — that controller owns the flash.
+ * Flash (datasheet Table 6, PICO-V3): GPIO6 = FLASH_CLK, GPIO11 = FLASH_CS.
+ * Those two are not used. GPIO7/8/9/10 are free on PICO-V3 (Table 8).
+ * On PICO-V3-02, GPIO9 and GPIO10 are PSRAM and must not be on this bus.
  *
  * MC33879 IN5 is the same net as RS-ON (GPIO27). Door open drives it.
  * SPI bit of OUT5 must stay 0, otherwise it ORs with the door pulse.
@@ -68,7 +70,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(adg1608_init(&mux, &tca));
 
-    // One bus. CS-E / CS-P attach later with spi_bus_add_device(SPI2_HOST).
+    // SPI2 only. SPI1_HOST stays with the internal flash.
     ESP_ERROR_CHECK(mc33879_bus_init(SPI2_HOST, SPI_MOSI_GPIO, SPI_MISO_GPIO, SPI_SCLK_GPIO));
 
     mc33879_config_t mc_cfg = {
