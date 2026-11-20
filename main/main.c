@@ -13,23 +13,42 @@
 
 static const char *TAG = "DOMOFON";
 
-// I2C
+/*
+ * Pin map taken from the board schematic (net names), ESP32-PICO-V3.
+ *
+ * One SPI bus, several chip-selects:
+ *   MOSI  GPIO7   net IO7   -> MC33879 DI
+ *   MISO  GPIO9   net IO9   -> MC33879 DO
+ *   SCLK  GPIO5   net IO5   -> MC33879 SCLK
+ *   CS-D  GPIO8   net IO8   -> MC33879 CS
+ *   EN-DE GPIO20  net IO20  -> MC33879 EN
+ *   CS-E  GPIO10  net IO10  (other SPI device, not attached yet)
+ *   CS-P  GPIO19  net IO19  (other SPI device, not attached yet)
+ *   EN-P  GPIO22  net IO22  (other SPI device, not attached yet)
+ *
+ * GPIO6-11 are bonded to the in-package flash on ESP32-PICO-V3.
+ * The schematic still routes the external SPI onto GPIO5/7/8/9/10.
+ * Do not also claim SPI1_HOST — that controller owns the flash.
+ *
+ * MC33879 IN5 is the same net as RS-ON (GPIO27). Door open drives it.
+ * SPI bit of OUT5 must stay 0, otherwise it ORs with the door pulse.
+ * MC33879 IN6 is GPIO21 (A6).
+ */
+
 #define I2C_SCL_GPIO     32
 #define I2C_SDA_GPIO     33
+#define TCA_INT_GPIO     35
 
-// Line detect
 #define LINE_DO1_GPIO    36
 #define LINE_DO2_GPIO    37
 
-// Shared SPI bus (one MOSI/MISO/SCLK for every SPI chip on the board)
-#define SPI_MOSI_GPIO    23
-#define SPI_MISO_GPIO    19
-#define SPI_SCLK_GPIO    18
+#define SPI_MOSI_GPIO    7
+#define SPI_MISO_GPIO    9
+#define SPI_SCLK_GPIO    5
 
-// MC33879 device pins (TODO: confirm CS/EN against the board)
-#define MC_CS_GPIO       5
-#define MC_EN_GPIO       20
-#define MC_IN5_GPIO      27
+#define MC_CS_GPIO       8     // CS-D
+#define MC_EN_GPIO       20    // EN-DE
+#define MC_IN5_GPIO      27    // RS-ON, also the door-open line
 #define MC_IN6_GPIO      21
 
 static i2c_dev_t tca;
@@ -38,7 +57,7 @@ static mc33879_handle_t hs_switch;
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Coordinate Domofon start (ESP-IDF + Component Registry)");
+    ESP_LOGI(TAG, "Coordinate Domofon start");
 
     ESP_ERROR_CHECK(i2cdev_init());
 
@@ -49,7 +68,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(adg1608_init(&mux, &tca));
 
-    // One SPI bus. Additional chips (other CS) must call spi_bus_add_device on SPI2_HOST.
+    // One bus. CS-E / CS-P attach later with spi_bus_add_device(SPI2_HOST).
     ESP_ERROR_CHECK(mc33879_bus_init(SPI2_HOST, SPI_MOSI_GPIO, SPI_MISO_GPIO, SPI_SCLK_GPIO));
 
     mc33879_config_t mc_cfg = {
@@ -67,8 +86,18 @@ void app_main(void)
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << LINE_DO1_GPIO) | (1ULL << LINE_DO2_GPIO),
         .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
     };
     gpio_config(&io_conf);
+
+    gpio_config_t int_conf = {
+        .pin_bit_mask = (1ULL << TCA_INT_GPIO),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&int_conf);
 
     ESP_LOGI(TAG, "=== Hardware ready ===");
 
