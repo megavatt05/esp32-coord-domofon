@@ -12,9 +12,6 @@ extern "C" {
 typedef struct {
     spi_host_device_t spi_host;
     gpio_num_t pin_cs;
-    gpio_num_t pin_sclk;
-    gpio_num_t pin_mosi;
-    gpio_num_t pin_miso;
     gpio_num_t pin_en;       // -1 if not used
     gpio_num_t pin_in5;      // -1 if not used (direct control OUT5)
     gpio_num_t pin_in6;      // -1 if not used (direct control OUT6)
@@ -23,8 +20,27 @@ typedef struct {
 
 typedef struct mc33879_dev_t* mc33879_handle_t;
 
+/**
+ * Initialize the shared SPI bus exactly once.
+ * Call this before any mc33879_init(). Subsequent calls for the same host are no-ops.
+ * Other SPI devices on the same MOSI/MISO/SCLK must use this bus, not a second initialize.
+ */
+esp_err_t mc33879_bus_init(spi_host_device_t host,
+                           gpio_num_t pin_mosi,
+                           gpio_num_t pin_miso,
+                           gpio_num_t pin_sclk);
+
+/**
+ * Add one MC33879 to an already initialized SPI bus.
+ * Does NOT call spi_bus_initialize.
+ */
 esp_err_t mc33879_init(mc33879_handle_t *handle, const mc33879_config_t *config);
+
+/**
+ * Remove this device from the bus. Does NOT free the shared SPI bus.
+ */
 esp_err_t mc33879_deinit(mc33879_handle_t handle);
+
 esp_err_t mc33879_enable(mc33879_handle_t handle, bool enable);
 esp_err_t mc33879_set_outputs(mc33879_handle_t handle, uint8_t outputs);
 esp_err_t mc33879_set_channel(mc33879_handle_t handle, uint8_t channel, bool on); // 1..8
